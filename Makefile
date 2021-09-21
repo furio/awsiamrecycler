@@ -122,6 +122,10 @@ deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in
 undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
 	$(KUSTOMIZE) build config/default | kubectl delete -f -
 
+# Rebuild-repush
+.PHONY: cluster-redeploy
+cluster-redeploy:
+	$(MAKE) undeploy docker-build kind-push deploy
 
 CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
 controller-gen: ## Download controller-gen locally if necessary.
