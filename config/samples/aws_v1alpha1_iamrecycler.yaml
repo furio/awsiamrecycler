@@ -1,0 +1,7 @@
+apiVersion: aws.furio.me/v1alpha1
+kind: IAMRecycler
+metadata:
+  name: iamrecycler-sample
+spec:
+  # Add fields here
+  foo: bar

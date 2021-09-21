@@ -1,0 +1,24 @@
+# permissions for end users to edit iamrecyclers.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: iamrecycler-editor-role
+rules:
+- apiGroups:
+  - aws.furio.me
+  resources:
+  - iamrecyclers
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - aws.furio.me
+  resources:
+  - iamrecyclers/status
+  verbs:
+  - get
