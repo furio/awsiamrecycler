@@ -6,6 +6,17 @@ metadata:
   name: system
 ---
 apiVersion: apps/v1
+kind: Secret
+metadata:
+  name: controller-manager-aws-secret
+  namespace: system
+type: Opaque
+data:
+  AWS_ACCESS_KEY_ID: 
+  AWS_SECRET_ACCESS_KEY: 
+  AWS_DEFAULT_REGION:
+---
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: controller-manager
@@ -52,5 +63,8 @@ spec:
           requests:
             cpu: 100m
             memory: 20Mi
+        envFrom:
+          - secretRef:
+            name: controller-manager-aws-secret
       serviceAccountName: controller-manager
       terminationGracePeriodSeconds: 10
