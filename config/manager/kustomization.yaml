@@ -1,4 +1,5 @@
 resources:
+- manager-secret.yaml
 - manager.yaml
 
 generatorOptions:

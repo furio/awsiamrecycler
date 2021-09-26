@@ -25,6 +25,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	awsv1alpha1 "github.com/furio/awsiamrecycler/api/v1alpha1"
+
+	"github.com/aws/aws-sdk-go/aws/awserr"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/iam"
 )
 
 // IAMRecyclerReconciler reconciles a IAMRecycler object
@@ -58,6 +62,23 @@ func (r *IAMRecyclerReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	}
 
 	logger.Info("Iam object found", "name", iamrecycler.Name)
+
+	mySession := session.Must(session.NewSession())
+	// Create a IAM client from just a session.
+	svc := iam.New(mySession)
+	input := &iam.ListUsersInput{}
+
+	result, err := svc.ListUsers(input)
+	if err != nil {
+		if aerr, ok := err.(awserr.Error); ok {
+			logger.Error(err, aerr.Error())
+		} else {
+			logger.Error(err, err.Error())
+		}
+		return ctrl.Result{}, err
+	}
+
+	logger.Info("Iam results", "result", result)
 
 	return ctrl.Result{}, nil
 }

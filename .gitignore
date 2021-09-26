@@ -23,3 +23,6 @@ testbin/*
 *.swp
 *.swo
 *~
+
+# Secret
+config/manager/manager-secret.yaml
