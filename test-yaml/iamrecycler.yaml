@@ -4,6 +4,16 @@ metadata:
   name: iamrecycler-sample
 spec:
   # Add fields here
-  secret: bar
-  iamuser: pippolippo
+  secret: secret-change
+  iamuser: test-change-keys
   recycle: 100
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: secret-change
+type: Opaque
+data:
+  AWS_ACCESS_KEY_ID: ZXUtd2VzdC0x
+  AWS_SECRET_ACCESS_KEY: ZXUtd2VzdC0x
+  AWS_DEFAULT_REGION: ZXUtd2VzdC0x
