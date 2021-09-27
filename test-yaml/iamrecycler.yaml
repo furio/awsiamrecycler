@@ -1,7 +1,13 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: awstest-ns
+---
 apiVersion: aws.furio.me/v1alpha1
 kind: IAMRecycler
 metadata:
   name: iamrecycler-sample
+  namespace: awstest-ns
 spec:
   # Add fields here
   secret: secret-change
@@ -12,6 +18,7 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: secret-change
+  namespace: awstest-ns
 type: Opaque
 data:
   AWS_ACCESS_KEY_ID: ZXUtd2VzdC0x

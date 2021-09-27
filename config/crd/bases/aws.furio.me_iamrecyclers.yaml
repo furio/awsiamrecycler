@@ -37,13 +37,13 @@ spec:
             description: IAMRecyclerSpec defines the desired state of IAMRecycler
             properties:
               iamuser:
-                minLength: 0
+                minLength: 1
                 type: string
               recycle:
-                minimum: 0
+                minimum: 60
                 type: integer
               secret:
-                minLength: 0
+                minLength: 1
                 type: string
             required:
             - iamuser

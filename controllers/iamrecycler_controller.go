@@ -18,14 +18,19 @@ package controllers
 
 import (
 	"context"
+	"sort"
 
-	"k8s.io/apimachinery/pkg/runtime"
+	corev1 "k8s.io/api/core/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	awsv1alpha1 "github.com/furio/awsiamrecycler/api/v1alpha1"
 
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
+
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/iam"
@@ -63,12 +68,28 @@ func (r *IAMRecyclerReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 	logger.Info("Iam object found", "name", iamrecycler.Name)
 
+	foundSecret := &corev1.Secret{}
+	err = r.Get(ctx, types.NamespacedName{Name: iamrecycler.Spec.Secret, Namespace: req.NamespacedName.Namespace}, foundSecret)
+	if err != nil {
+		logger.Error(err, "Failed to get Secret", "secret", iamrecycler.Spec.Secret)
+		return ctrl.Result{}, err
+	}
+
+	logger.Info("Secret object found", "secret", foundSecret, "data", foundSecret.Data)
+
+	if foundSecret.Immutable != nil && *(foundSecret.Immutable) {
+		logger.Error(err, "Secret is immutable", "secret", iamrecycler.Spec.Secret)
+		return ctrl.Result{}, err
+	}
+
 	mySession := session.Must(session.NewSession())
 	// Create a IAM client from just a session.
 	svc := iam.New(mySession)
-	input := &iam.ListUsersInput{}
+	input := &iam.ListAccessKeysInput{
+		UserName: aws.String(iamrecycler.Spec.IAMUser),
+	}
 
-	result, err := svc.ListUsers(input)
+	listKeys, err := svc.ListAccessKeys(input)
 	if err != nil {
 		if aerr, ok := err.(awserr.Error); ok {
 			logger.Error(err, aerr.Error())
@@ -78,7 +99,58 @@ func (r *IAMRecyclerReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{}, err
 	}
 
-	logger.Info("Iam results", "result", result)
+	sort.SliceStable(listKeys.AccessKeyMetadata, func(i, j int) bool {
+		return listKeys.AccessKeyMetadata[i].CreateDate.Before(*listKeys.AccessKeyMetadata[j].CreateDate)
+	})
+
+	logger.Info("Iam results", "result", listKeys.AccessKeyMetadata)
+
+	keysLen := len(listKeys.AccessKeyMetadata)
+	if keysLen == 2 {
+		input := &iam.DeleteAccessKeyInput{
+			AccessKeyId: listKeys.AccessKeyMetadata[0].AccessKeyId,
+			UserName:    aws.String(iamrecycler.Spec.IAMUser),
+		}
+		_, err := svc.DeleteAccessKey(input)
+		if err != nil {
+			if aerr, ok := err.(awserr.Error); ok {
+				logger.Error(err, aerr.Error())
+			} else {
+				logger.Error(err, err.Error())
+			}
+			return ctrl.Result{}, err
+		}
+	}
+
+	// TODO: Enable it to test
+	if false {
+		newKeyInput := &iam.CreateAccessKeyInput{
+			UserName: aws.String(iamrecycler.Spec.IAMUser),
+		}
+
+		newKey, err := svc.CreateAccessKey(newKeyInput)
+		if err != nil {
+			if aerr, ok := err.(awserr.Error); ok {
+				logger.Error(err, aerr.Error())
+			} else {
+				logger.Error(err, err.Error())
+			}
+			return ctrl.Result{}, err
+		}
+
+		logger.Info("Newkeys", "result", newKey)
+
+		// Update
+		foundSecret.StringData["AWS_ACCESS_KEY_ID"] = *(newKey.AccessKey.AccessKeyId)
+		foundSecret.StringData["AWS_SECRET_ACCESS_KEY"] = *(newKey.AccessKey.SecretAccessKey)
+
+		// Update the secret
+		err = r.Update(ctx, foundSecret)
+		if err != nil {
+			logger.Error(err, "Failed to update Secret", "secret", foundSecret.Name, "namespace", foundSecret.Namespace)
+			return ctrl.Result{}, err
+		}
+	}
 
 	return ctrl.Result{}, nil
 }

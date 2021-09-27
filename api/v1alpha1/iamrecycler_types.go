@@ -28,11 +28,11 @@ type IAMRecyclerSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	//+kubebuilder:validation:MinLength=0
+	//+kubebuilder:validation:MinLength=1
 	Secret string `json:"secret"`
-	//+kubebuilder:validation:MinLength=0
+	//+kubebuilder:validation:MinLength=1
 	IAMUser string `json:"iamuser"`
-	//+kubebuilder:validation:Minimum=0
+	//+kubebuilder:validation:Minimum=60
 	Recycle int `json:"recycle"`
 }
 
