@@ -36,6 +36,12 @@ spec:
           spec:
             description: IAMRecyclerSpec defines the desired state of IAMRecycler
             properties:
+              datakeyaccesskey:
+                minLength: 1
+                type: string
+              datakeysecretkey:
+                minLength: 1
+                type: string
               iamuser:
                 minLength: 1
                 type: string
@@ -46,6 +52,8 @@ spec:
                 minLength: 1
                 type: string
             required:
+            - datakeyaccesskey
+            - datakeysecretkey
             - iamuser
             - recycle
             - secret

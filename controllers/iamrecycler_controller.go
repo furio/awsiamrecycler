@@ -45,7 +45,7 @@ type IAMRecyclerReconciler struct {
 //+kubebuilder:rbac:groups=aws.furio.me,resources=iamrecyclers,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=aws.furio.me,resources=iamrecyclers/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=aws.furio.me,resources=iamrecyclers/finalizers,verbs=update
-//+kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;update;patch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.

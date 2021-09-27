@@ -31,6 +31,10 @@ type IAMRecyclerSpec struct {
 	//+kubebuilder:validation:MinLength=1
 	Secret string `json:"secret"`
 	//+kubebuilder:validation:MinLength=1
+	DataKeyAccesskey string `json:"datakeyaccesskey"`
+	//+kubebuilder:validation:MinLength=1
+	DataKeySecretkey string `json:"datakeysecretkey"`
+	//+kubebuilder:validation:MinLength=1
 	IAMUser string `json:"iamuser"`
 	//+kubebuilder:validation:Minimum=60
 	Recycle int `json:"recycle"`
