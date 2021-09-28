@@ -13,6 +13,8 @@ spec:
   secret: secret-change
   iamuser: test-change-keys
   recycle: 100
+  datakeyaccesskey: AWS_ACCESS_KEY_ID
+  datakeysecretkey: AWS_SECRET_ACCESS_KEY
 ---
 apiVersion: v1
 kind: Secret

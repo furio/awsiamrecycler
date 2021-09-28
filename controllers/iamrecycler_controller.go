@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 	"sort"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -27,6 +28,7 @@ import (
 
 	awsv1alpha1 "github.com/furio/awsiamrecycler/api/v1alpha1"
 
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 
@@ -40,12 +42,29 @@ import (
 type IAMRecyclerReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
+	Clock
 }
+
+/*
+We'll mock out the clock to make it easier to jump around in time while testing,
+the "real" clock just calls `time.Now`.
+*/
+type realClock struct{}
+
+func (_ realClock) Now() time.Time { return time.Now() }
+
+// clock knows how to get the current time.
+// It can be used to fake out timing for testing.
+type Clock interface {
+	Now() time.Time
+}
+
+// +kubebuilder:docs-gen:collapse=Clock
 
 //+kubebuilder:rbac:groups=aws.furio.me,resources=iamrecyclers,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=aws.furio.me,resources=iamrecyclers/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=aws.furio.me,resources=iamrecyclers/finalizers,verbs=update
-//+kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;update;patch
+//+kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;update;patch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -63,10 +82,18 @@ func (r *IAMRecyclerReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	err := r.Get(ctx, req.NamespacedName, iamrecycler)
 	if err != nil {
 		logger.Error(err, "Error while getting the object")
-		return ctrl.Result{}, err
+		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	logger.Info("Iam object found", "name", iamrecycler.Name)
+	logger.Info("IAMRecycler found", "name", iamrecycler.Name)
+
+	if iamrecycler.Status.LastRecycleTime != nil {
+		nextRun := iamrecycler.Status.LastRecycleTime.Time.Add(time.Minute * time.Duration(iamrecycler.Spec.Recycle))
+
+		if nextRun.After(r.Now()) {
+			return ctrl.Result{RequeueAfter: nextRun.Sub(r.Now())}, nil
+		}
+	}
 
 	foundSecret := &corev1.Secret{}
 	err = r.Get(ctx, types.NamespacedName{Name: iamrecycler.Spec.Secret, Namespace: req.NamespacedName.Namespace}, foundSecret)
@@ -75,7 +102,7 @@ func (r *IAMRecyclerReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{}, err
 	}
 
-	logger.Info("Secret object found", "secret", foundSecret, "data", foundSecret.Data)
+	logger.Info("Secret object found", "name", foundSecret.Name)
 
 	if foundSecret.Immutable != nil && *(foundSecret.Immutable) {
 		logger.Error(err, "Secret is immutable", "secret", iamrecycler.Spec.Secret)
@@ -103,7 +130,7 @@ func (r *IAMRecyclerReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return listKeys.AccessKeyMetadata[i].CreateDate.Before(*listKeys.AccessKeyMetadata[j].CreateDate)
 	})
 
-	logger.Info("Iam results", "result", listKeys.AccessKeyMetadata)
+	logger.Info("AWS iam list keys", "result", listKeys.AccessKeyMetadata)
 
 	keysLen := len(listKeys.AccessKeyMetadata)
 	if keysLen == 2 {
@@ -122,41 +149,53 @@ func (r *IAMRecyclerReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		}
 	}
 
-	// TODO: Enable it to test
-	if false {
-		newKeyInput := &iam.CreateAccessKeyInput{
-			UserName: aws.String(iamrecycler.Spec.IAMUser),
-		}
-
-		newKey, err := svc.CreateAccessKey(newKeyInput)
-		if err != nil {
-			if aerr, ok := err.(awserr.Error); ok {
-				logger.Error(err, aerr.Error())
-			} else {
-				logger.Error(err, err.Error())
-			}
-			return ctrl.Result{}, err
-		}
-
-		logger.Info("Newkeys", "result", newKey)
-
-		// Update
-		foundSecret.StringData["AWS_ACCESS_KEY_ID"] = *(newKey.AccessKey.AccessKeyId)
-		foundSecret.StringData["AWS_SECRET_ACCESS_KEY"] = *(newKey.AccessKey.SecretAccessKey)
-
-		// Update the secret
-		err = r.Update(ctx, foundSecret)
-		if err != nil {
-			logger.Error(err, "Failed to update Secret", "secret", foundSecret.Name, "namespace", foundSecret.Namespace)
-			return ctrl.Result{}, err
-		}
+	newKeyInput := &iam.CreateAccessKeyInput{
+		UserName: aws.String(iamrecycler.Spec.IAMUser),
 	}
 
-	return ctrl.Result{}, nil
+	newKey, err := svc.CreateAccessKey(newKeyInput)
+	if err != nil {
+		if aerr, ok := err.(awserr.Error); ok {
+			logger.Error(err, aerr.Error())
+		} else {
+			logger.Error(err, err.Error())
+		}
+		return ctrl.Result{}, err
+	}
+
+	// Update
+	data := make(map[string]string)
+	data[iamrecycler.Spec.DataKeyAccesskey] = *(newKey.AccessKey.AccessKeyId)
+	data[iamrecycler.Spec.DataKeySecretkey] = *(newKey.AccessKey.SecretAccessKey)
+
+	foundSecret.StringData = data
+
+	// Update the secret
+	err = r.Update(ctx, foundSecret)
+	if err != nil {
+		logger.Error(err, "Failed to update Secret", "secret", foundSecret.Name, "namespace", foundSecret.Namespace)
+		return ctrl.Result{}, err
+	}
+
+	// Update the status
+	nextTime := v1.Now()
+	iamrecycler.Status.LastRecycleTime = &nextTime
+	if err := r.Status().Update(ctx, iamrecycler); err != nil {
+		logger.Error(err, "unable to update IAMRecycler status")
+		return ctrl.Result{}, err
+	}
+
+	logger.Info("Updated Secret and IAMRecycler", "namespace", foundSecret.Namespace, "secret", foundSecret.Name, "iamrecycler", iamrecycler.Name)
+
+	return ctrl.Result{RequeueAfter: time.Minute * time.Duration(iamrecycler.Spec.Recycle)}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *IAMRecyclerReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	if r.Clock == nil {
+		r.Clock = realClock{}
+	}
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&awsv1alpha1.IAMRecycler{}).
 		// Owns(&corev1.Secret{}).
