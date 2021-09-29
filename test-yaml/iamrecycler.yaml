@@ -6,13 +6,13 @@ metadata:
 apiVersion: aws.furio.me/v1alpha1
 kind: IAMRecycler
 metadata:
-  name: iamrecycler-sample
+  name: iamrecycler-test-01
   namespace: awstest-ns
 spec:
   # Add fields here
   secret: secret-change
   iamuser: test-change-keys
-  recycle: 100
+  recycle: 5
   datakeyaccesskey: AWS_ACCESS_KEY_ID
   datakeysecretkey: AWS_SECRET_ACCESS_KEY
 ---

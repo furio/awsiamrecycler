@@ -20,23 +20,25 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-
 // IAMRecyclerSpec defines the desired state of IAMRecycler
 type IAMRecyclerSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
+	// Secret object name in the same namespace
 	//+kubebuilder:validation:MinLength=1
 	Secret string `json:"secret"`
+	// Name of the data in the secret that contains the ACCESS KEY
 	//+kubebuilder:validation:MinLength=1
 	DataKeyAccesskey string `json:"datakeyaccesskey"`
+	// Name of the data in the secret that contains the SECRET KEY
 	//+kubebuilder:validation:MinLength=1
 	DataKeySecretkey string `json:"datakeysecretkey"`
+	// IAM user on the AWS account from which generate the key
 	//+kubebuilder:validation:MinLength=1
 	IAMUser string `json:"iamuser"`
-	//+kubebuilder:validation:Minimum=60
+	// Recycle time in minutes
+	//+kubebuilder:validation:Minimum=1
 	Recycle int `json:"recycle"`
 }
 

@@ -1,0 +1,53 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: ClusterServiceVersion
+metadata:
+  annotations:
+    alm-examples: '[]'
+    capabilities: Basic Install
+  name: awsiamrecycler.v0.0.0
+  namespace: placeholder
+spec:
+  apiservicedefinitions: {}
+  customresourcedefinitions:
+    owned:
+    - description: IAMRecycler is the Schema for the iamrecyclers API
+      displayName: IAMRecycler
+      kind: IAMRecycler
+      name: iamrecyclers.aws.furio.me
+      version: v1alpha1
+  description: This operator recreate access and secret key of an AWS IAM user and
+    upadates the linkes secret accordingly
+  displayName: IAM Recycler for AWS IAM Keys
+  icon:
+  - base64data: ""
+    mediatype: ""
+  install:
+    spec:
+      deployments: null
+    strategy: ""
+  installModes:
+  - supported: false
+    type: OwnNamespace
+  - supported: false
+    type: SingleNamespace
+  - supported: false
+    type: MultiNamespace
+  - supported: true
+    type: AllNamespaces
+  keywords:
+  - AWS
+  - IAM
+  - Access Key
+  - Secret Key
+  - Secret
+  links:
+  - name: Awsiamrecycler
+    url: https://awsiamrecycler.domain
+  maintainers:
+  - email: francesco@furio.me
+    name: Francesco Furiani
+  maturity: alpha
+  provider:
+    name: furio.me
+    url: furio.me
+  version: 0.0.0

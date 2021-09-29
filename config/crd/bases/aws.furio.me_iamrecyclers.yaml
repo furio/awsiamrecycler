@@ -37,18 +37,25 @@ spec:
             description: IAMRecyclerSpec defines the desired state of IAMRecycler
             properties:
               datakeyaccesskey:
+                description: Name of the data in the secret that contains the ACCESS
+                  KEY
                 minLength: 1
                 type: string
               datakeysecretkey:
+                description: Name of the data in the secret that contains the SECRET
+                  KEY
                 minLength: 1
                 type: string
               iamuser:
+                description: IAM user on the AWS account from which generate the key
                 minLength: 1
                 type: string
               recycle:
-                minimum: 60
+                description: Recycle time in minutes
+                minimum: 1
                 type: integer
               secret:
+                description: Secret object name in the same namespace
                 minLength: 1
                 type: string
             required:
